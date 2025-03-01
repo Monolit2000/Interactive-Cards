@@ -18,30 +18,6 @@
   }
   
 
-// :host {
-//     display: block;
-//     height: 100vh;
-//     width: 100vw; // Убедимся, что компонент занимает всю ширину
-//     margin: 0;
-//     padding: 0;
-//     overflow: hidden; // Убираем возможность прокрутки
-//     background-color: #0d1117; // Фон страницы
-//     font-family: Arial, sans-serif;
-//   }
-  
-//   .container {
-//     position: absolute;
-//     top: 0;
-//     left: 0;
-//     width: 100vw; // Устанавливаем полную ширину окна
-//     height: 100vh; // Устанавливаем полную высоту окна
-//     transform-origin: center;
-//     background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
-//     background-size: var(--grid-size) var(--grid-size);
-//     overflow: hidden; // Убираем прокрутку внутри контейнера
-//   }
-
-
   .card {
     padding: 15px;
     background: #161b22;
@@ -231,8 +207,6 @@
     z-index: 5;
   }
 
-
-  // ... остальные стили остаются без изменений ...
 
 .container {
     position: absolute;
