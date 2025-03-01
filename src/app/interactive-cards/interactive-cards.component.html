@@ -1,0 +1,48 @@
+
+
+
+<button class="sidebar-toggle" (click)="toggleSidebar()">☰</button>
+<div class="sidebar" [class.open]="isSidebarOpen">
+  <h2>Sidebar</h2>
+  <ul>
+    <li>Draggable Cards: Click and drag to move cards.</li>
+    <li>Card Connections: Use <span class="code-effect">Alt + click</span> to connect or disconnect cards with lines.</li>
+    <li>Zoom: Use <span class="code-effect">+/- buttons</span> or <span class="code-effect">Ctrl + wheel</span> to zoom (0.5x-2x).</li>
+    <li>Copy/Paste: <span class="code-effect">Ctrl+C</span> to copy, <span class="code-effect">Ctrl+V</span> to paste selected cards.</li>
+    <li>Multiple Selection: Drag on empty space to select multiple cards.</li>
+    <li>Delete Cards: Press <span class="code-effect">Delete</span> key to remove selected cards (with confirmation).</li>
+  </ul>
+  <!-- Добавляем управление размером сетки -->
+  <div style="margin-top: 20px;">
+    <label>Grid Size: {{ gridSpacing }}px</label>
+    <div style="display: flex; gap: 10px; margin-top: 5px;">
+      <button class="zoom-btn" (click)="setGridSpacing(gridSpacing - 10)">−</button>
+      <input type="number" [(ngModel)]="gridSpacing" (ngModelChange)="setGridSpacing(gridSpacing)" min="10" max="200" style="width: 60px; padding: 5px; border-radius: 4px; background: #21262d; color: white; border: none;" />
+      <button class="zoom-btn" (click)="setGridSpacing(gridSpacing + 10)">+</button>
+    </div>
+  </div>
+  <button class="add-card-btn" (click)="addNewCard()">Add New Card</button>
+</div>
+<div class="container" #zoomContainer (mousedown)="startSelection($event)">
+  <svg #svgContainer></svg>
+  <div *ngFor="let card of cards" [id]="card.id" class="card" 
+       [ngClass]="{'selected': selectedCards.includes(card), 'connecting': connectingFrom === card}"
+       [style.left.px]="card.baseX * scale" [style.top.px]="card.baseY * scale" 
+       [style.width.px]="card.baseWidth * scale" [style.height.px]="card.baseHeight * scale" 
+       [style.padding.px]="baseCardPadding * scale" 
+       (mousedown)="onCardMouseDown($event, card)" 
+       (click)="onCardClick($event, card)"
+       (mousemove)="updateCursor($event, card)">
+    <h3 [style.fontSize.px]="baseFontSize * scale">{{ card.title }}</h3>
+    <input type="text" [style.padding.px]="baseInputPadding * scale" [style.fontSize.px]="16 * scale"
+           [(ngModel)]="card.inputValue" placeholder="Enter text...">
+  </div>
+  <div class="selection-rect" *ngIf="isSelecting" [style.left.px]="selectionRect.left" 
+       [style.top.px]="selectionRect.top" [style.width.px]="selectionRect.width" 
+       [style.height.px]="selectionRect.height"></div>
+</div>
+<div class="zoom-controls">
+  <button class="zoom-btn" (click)="zoom(1.1)">+</button>
+  <button class="zoom-btn" (click)="zoom(0.9)">−</button>
+</div>
+
