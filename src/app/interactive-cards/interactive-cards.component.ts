@@ -42,7 +42,7 @@ export class InteractiveCardsComponent implements AfterViewInit {
   startX = 0;
   startY = 0;
 
-  gridSpacing = 50; // Начальное значение сетки
+  gridSpacing = 50;
 
   readonly baseCardWidth = 250;
   readonly baseCardPadding = 15;
@@ -55,15 +55,25 @@ export class InteractiveCardsComponent implements AfterViewInit {
   ngAfterViewInit(): void {
     this.addNewCard(100, 100);
     this.addNewCard(400, 200);
-    // Инициализируем --grid-size при загрузке
     this.zoomContainer.nativeElement.style.setProperty('--grid-size', `${this.gridSpacing}px`);
     this.cdr.detectChanges();
   }
 
   setGridSpacing(size: number): void {
-    this.gridSpacing = Math.max(10, Math.min(200, size)); // Ограничиваем от 10 до 200
-    this.zoomContainer.nativeElement.style.setProperty('--grid-size', `${this.gridSpacing}px`); // Обновляем фон сетки
+    this.gridSpacing = Math.max(10, Math.min(200, size));
+    this.zoomContainer.nativeElement.style.setProperty('--grid-size', `${this.gridSpacing * this.scale}px`);
+    this.adjustCardsAfterGridChange(); // Пересчитываем позиции после изменения сетки
     this.cdr.detectChanges();
+  }
+
+  adjustCardsAfterGridChange(): void {
+    this.cards.forEach((card) => {
+      card.baseX = this.snapToGrid(card.baseX);
+      card.baseY = this.snapToGrid(card.baseY);
+      card.baseWidth = this.snapToGrid(card.baseWidth);
+      card.baseHeight = this.snapToGrid(card.baseHeight);
+    });
+    this.updateLines();
   }
 
   addNewCard(x = 100 / this.scale + this.cardCount * 50 / this.scale, y = 100 / this.scale + this.cardCount * 50 / this.scale): void {
@@ -82,7 +92,37 @@ export class InteractiveCardsComponent implements AfterViewInit {
   }
 
   snapToGrid(value: number): number {
-    return Math.round(value / this.gridSpacing) * this.gridSpacing;
+    return Math.round(value / (this.gridSpacing * this.scale)) * (this.gridSpacing * this.scale);
+  }
+
+  zoom(delta: number): void {
+    const newScale = this.scale * delta;
+    if (newScale >= 0.5 && newScale <= 2) {
+      this.scale = newScale;
+      // Масштабируем базовые размеры и позиции карточек
+      this.cards.forEach((card) => {
+        card.baseX = card.baseX * delta;
+        card.baseY = card.baseY * delta;
+        card.baseWidth = card.baseWidth * delta;
+        card.baseHeight = card.baseHeight * delta;
+      });
+      // Масштабируем сетку
+      this.zoomContainer.nativeElement.style.setProperty('--grid-size', `${this.gridSpacing * this.scale}px`);
+      // Пересчитываем позиции, чтобы избежать перекрытий
+      this.preventOverlapsAfterZoom();
+      this.updateLines();
+      this.cdr.detectChanges();
+    }
+  }
+
+  preventOverlapsAfterZoom(): void {
+    this.cards.forEach((card) => {
+      let proposedX = card.baseX;
+      let proposedY = card.baseY;
+      const adjustedPosition = this.preventOverlap(card, proposedX, proposedY);
+      card.baseX = adjustedPosition.x;
+      card.baseY = adjustedPosition.y;
+    });
   }
 
   updateLines(): void {
@@ -93,10 +133,10 @@ export class InteractiveCardsComponent implements AfterViewInit {
     this.connectors.forEach((connector) => {
       const fromCard = this.cards.find((c) => c === connector.from)!;
       const toCard = this.cards.find((c) => c === connector.to)!;
-      const x1 = fromCard.baseX * this.scale + (fromCard.baseWidth * this.scale) / 2;
-      const y1 = fromCard.baseY * this.scale + (fromCard.baseHeight * this.scale) / 2;
-      const x2 = toCard.baseX * this.scale + (toCard.baseWidth * this.scale) / 2;
-      const y2 = toCard.baseY * this.scale + (toCard.baseHeight * this.scale) / 2;
+      const x1 = fromCard.baseX + (fromCard.baseWidth / 2);
+      const y1 = fromCard.baseY + (fromCard.baseHeight / 2);
+      const x2 = toCard.baseX + (toCard.baseWidth / 2);
+      const y2 = toCard.baseY + (toCard.baseHeight / 2);
 
       const dx = x2 - x1;
       const dy = y2 - y1;
@@ -112,7 +152,7 @@ export class InteractiveCardsComponent implements AfterViewInit {
       path.setAttribute('stroke', 'white');
       path.setAttribute('stroke-width', (2 * this.scale).toString());
       path.setAttribute('fill', 'none');
-      path.setAttribute('d', `M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}`);
+      path.setAttribute('d', `M ${x1 * this.scale} ${y1 * this.scale} C ${cx1 * this.scale} ${cy1 * this.scale}, ${cx2 * this.scale} ${cy2 * this.scale}, ${x2 * this.scale} ${y2 * this.scale}`);
       svg.appendChild(path);
       connector.path = path;
     });
@@ -314,10 +354,10 @@ export class InteractiveCardsComponent implements AfterViewInit {
 
   preventOverlap(movingCard: Card, proposedX: number, proposedY: number): { x: number; y: number } {
     const movingRect = {
-      left: proposedX,
-      top: proposedY,
-      right: proposedX + movingCard.baseWidth,
-      bottom: proposedY + movingCard.baseHeight,
+      left: proposedX * this.scale, // Учитываем масштаб
+      top: proposedY * this.scale,
+      right: (proposedX + movingCard.baseWidth) * this.scale,
+      bottom: (proposedY + movingCard.baseHeight) * this.scale,
     };
 
     let adjustedX = proposedX;
@@ -327,10 +367,10 @@ export class InteractiveCardsComponent implements AfterViewInit {
       if (otherCard === movingCard || this.selectedCards.includes(otherCard)) continue;
 
       const otherRect = {
-        left: otherCard.baseX,
-        top: otherCard.baseY,
-        right: otherCard.baseX + otherCard.baseWidth,
-        bottom: otherCard.baseY + otherCard.baseHeight,
+        left: otherCard.baseX * this.scale, // Учитываем масштаб
+        top: otherCard.baseY * this.scale,
+        right: (otherCard.baseX + otherCard.baseWidth) * this.scale,
+        bottom: (otherCard.baseY + otherCard.baseHeight) * this.scale,
       };
 
       if (
@@ -346,17 +386,22 @@ export class InteractiveCardsComponent implements AfterViewInit {
 
         const minDisplacement = Math.min(Math.abs(dxLeft), Math.abs(dxRight), Math.abs(dyTop), Math.abs(dyBottom));
 
+        // Корректируем позиции с учётом масштаба
         if (minDisplacement === Math.abs(dxLeft)) {
-          adjustedX = otherRect.right;
+          adjustedX = (otherRect.right / this.scale) + this.gridSpacing * this.scale; // Добавляем шаг сетки
         } else if (minDisplacement === Math.abs(dxRight)) {
-          adjustedX = otherRect.left - movingCard.baseWidth;
+          adjustedX = (otherRect.left - movingCard.baseWidth) / this.scale - this.gridSpacing * this.scale; // Уменьшаем на шаг сетки
         } else if (minDisplacement === Math.abs(dyTop)) {
-          adjustedY = otherRect.bottom;
+          adjustedY = (otherRect.bottom / this.scale) + this.gridSpacing * this.scale;
         } else if (minDisplacement === Math.abs(dyBottom)) {
-          adjustedY = otherRect.top - movingCard.baseHeight;
+          adjustedY = (otherRect.top - movingCard.baseHeight) / this.scale - this.gridSpacing * this.scale;
         }
       }
     }
+
+    // Привязываем к сетке после корректировки
+    adjustedX = this.snapToGrid(adjustedX);
+    adjustedY = this.snapToGrid(adjustedY);
 
     return { x: adjustedX, y: adjustedY };
   }
@@ -380,7 +425,7 @@ export class InteractiveCardsComponent implements AfterViewInit {
         } else {
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('stroke', 'white');
-          path.setAttribute('stroke-width', '2');
+          path.setAttribute('stroke-width', (2 * this.scale).toString());
           path.setAttribute('fill', 'none');
           this.svgContainer.nativeElement.appendChild(path);
           this.connectors.push({ from: this.connectingFrom, to: card, path });
@@ -493,24 +538,13 @@ export class InteractiveCardsComponent implements AfterViewInit {
     }
   }
 
-  zoom(delta: number): void {
-    this.scale *= delta;
-    this.scale = Math.max(0.5, Math.min(2, this.scale));
-    this.cards.forEach((card) => {
-      card.baseX = card.baseX;
-      card.baseY = card.baseY;
-    });
-    this.updateLines();
-    this.cdr.detectChanges();
-  }
-
   copyCards(): void {
     if (this.selectedCards.length === 0) return;
     this.clipboard = this.selectedCards.map((card) => ({
-      baseX: card.baseX,
-      baseY: card.baseY,
-      baseWidth: card.baseWidth,
-      baseHeight: card.baseHeight,
+      baseX: card.baseX / this.scale,
+      baseY: card.baseY / this.scale,
+      baseWidth: card.baseWidth / this.scale,
+      baseHeight: card.baseHeight / this.scale,
       title: card.title,
       inputValue: card.inputValue,
       connections: this.connectors.filter((c) => c.from === card || c.to === card).map((c) => ({
@@ -535,10 +569,10 @@ export class InteractiveCardsComponent implements AfterViewInit {
         id: `card${this.cardCount}`,
         title: item.title,
         inputValue: item.inputValue,
-        baseX: item.baseX + offsetX,
-        baseY: item.baseY + offsetY,
-        baseWidth: item.baseWidth,
-        baseHeight: item.baseHeight,
+        baseX: (item.baseX + offsetX) * this.scale,
+        baseY: (item.baseY + offsetY) * this.scale,
+        baseWidth: item.baseWidth * this.scale,
+        baseHeight: item.baseHeight * this.scale,
       };
       this.cards.push(newCard);
       newCardsMap.set(item.title, newCard);
@@ -552,7 +586,7 @@ export class InteractiveCardsComponent implements AfterViewInit {
         if (fromCard && toCard && fromCard !== toCard) {
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('stroke', 'white');
-          path.setAttribute('stroke-width', '2');
+          path.setAttribute('stroke-width', (2 * this.scale).toString());
           path.setAttribute('fill', 'none');
           this.svgContainer.nativeElement.appendChild(path);
           this.connectors.push({ from: fromCard, to: toCard, path });
@@ -560,8 +594,19 @@ export class InteractiveCardsComponent implements AfterViewInit {
       });
     });
 
+    this.preventOverlapsAfterPaste(); // Устраняем перекрытия после вставки
     this.updateLines();
     this.cdr.detectChanges();
+  }
+
+  preventOverlapsAfterPaste(): void {
+    this.cards.forEach((card) => {
+      let proposedX = card.baseX / this.scale;
+      let proposedY = card.baseY / this.scale;
+      const adjustedPosition = this.preventOverlap(card, proposedX, proposedY);
+      card.baseX = adjustedPosition.x * this.scale;
+      card.baseY = adjustedPosition.y * this.scale;
+    });
   }
 
   deleteSelectedCards(): void {
@@ -617,4 +662,3 @@ export class InteractiveCardsComponent implements AfterViewInit {
     }
   }
 }
-
