@@ -10,6 +10,7 @@ interface Card {
   baseY: number; // Unscaled Y position.
   baseWidth: number; // Unscaled width.
   baseHeight: number; // Unscaled height.
+  message?: string;
 }
 
 interface Connector {
@@ -42,7 +43,7 @@ export class InteractiveCardsComponent implements AfterViewInit {
   startX = 0; // Selection start X.
   startY = 0; // Selection start Y.
 
-  gridSpacing = 50; // Grid spacing in pixels.
+  gridSpacing = 25; // Grid spacing in pixels.
   readonly baseCardWidth = 250; // Default card width.
   readonly baseCardPadding = 15; // Card padding.
   readonly baseFontSize = 18; // Card title font size.
@@ -121,34 +122,84 @@ export class InteractiveCardsComponent implements AfterViewInit {
     });
   }
 
+  // updateLines(): void {
+  //   const svg = this.svgContainer.nativeElement;
+  //   while (svg.firstChild) svg.removeChild(svg.firstChild); // Clear existing lines.
+  //   this.connectors.forEach((connector) => {
+  //     const fromCard = this.cards.find((c) => c === connector.from)!;
+  //     const toCard = this.cards.find((c) => c === connector.to)!;
+  //     const x1 = fromCard.baseX + (fromCard.baseWidth / 2); // Source center X.
+  //     const y1 = fromCard.baseY + (fromCard.baseHeight / 2); // Source center Y.
+  //     const x2 = toCard.baseX + (toCard.baseWidth / 2); // Target center X.
+  //     const y2 = toCard.baseY + (toCard.baseHeight / 2); // Target center Y.
+
+  //     const dx = x2 - x1; // X difference.
+  //     const dy = y2 - y1; // Y difference.
+  //     const distance = Math.sqrt(dx * dx + dy * dy); // Distance between points.
+  //     const curveFactor = Math.min(distance * 0.3, 150 * this.scale); // Curve scaling.
+
+  //     const cx1 = x1 + dx * 0.25 + (dy > 0 ? curveFactor : -curveFactor); // First control point X.
+  //     const cy1 = y1 + dy * 0.25; // First control point Y.
+  //     const cx2 = x2 - dx * 0.25 + (dy > 0 ? -curveFactor : curveFactor); // Second control point X.
+  //     const cy2 = y2 - dy * 0.25; // Second control point Y.
+
+  //     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  //     path.setAttribute('stroke', 'white'); // Set line color.
+  //     path.setAttribute('stroke-width', (2 * this.scale).toString()); // Scale line thickness.
+  //     path.setAttribute('fill', 'none'); // No fill, just a line.
+  //     path.setAttribute('d', `M ${x1 * this.scale} ${y1 * this.scale} C ${cx1 * this.scale} ${cy1 * this.scale}, ${cx2 * this.scale} ${cy2 * this.scale}, ${x2 * this.scale} ${y2 * this.scale}`); // Bezier curve path.
+  //     svg.appendChild(path); // Add line to SVG.
+  //     connector.path = path; // Store path in connector.
+  //   });
+  // }
+
+
   updateLines(): void {
     const svg = this.svgContainer.nativeElement;
-    while (svg.firstChild) svg.removeChild(svg.firstChild); // Clear existing lines.
+    while (svg.firstChild && svg.firstChild !== svg.querySelector('defs')) svg.removeChild(svg.firstChild); // Очищаем линии, оставляем defs
+  
     this.connectors.forEach((connector) => {
       const fromCard = this.cards.find((c) => c === connector.from)!;
       const toCard = this.cards.find((c) => c === connector.to)!;
-      const x1 = fromCard.baseX + (fromCard.baseWidth / 2); // Source center X.
-      const y1 = fromCard.baseY + (fromCard.baseHeight / 2); // Source center Y.
-      const x2 = toCard.baseX + (toCard.baseWidth / 2); // Target center X.
-      const y2 = toCard.baseY + (toCard.baseHeight / 2); // Target center Y.
-
-      const dx = x2 - x1; // X difference.
-      const dy = y2 - y1; // Y difference.
-      const distance = Math.sqrt(dx * dx + dy * dy); // Distance between points.
-      const curveFactor = Math.min(distance * 0.3, 150 * this.scale); // Curve scaling.
-
-      const cx1 = x1 + dx * 0.25 + (dy > 0 ? curveFactor : -curveFactor); // First control point X.
-      const cy1 = y1 + dy * 0.25; // First control point Y.
-      const cx2 = x2 - dx * 0.25 + (dy > 0 ? -curveFactor : curveFactor); // Second control point X.
-      const cy2 = y2 - dy * 0.25; // Second control point Y.
-
+  
+      const x1 = fromCard.baseX + (fromCard.baseWidth / 2);
+      const y1 = fromCard.baseY + (fromCard.baseHeight / 2);
+      const x2 = toCard.baseX + (toCard.baseWidth / 2);
+      const y2 = toCard.baseY + (toCard.baseHeight / 2);
+  
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const curveFactor = Math.min(distance * 0.3, 150 * this.scale);
+  
+      const cx1 = x1 + dx * 0.25 + (dy > 0 ? curveFactor : -curveFactor);
+      const cy1 = y1 + dy * 0.25;
+      const cx2 = x2 - dx * 0.25 + (dy > 0 ? -curveFactor : curveFactor);
+      const cy2 = y2 - dy * 0.25;
+  
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('stroke', 'white'); // Set line color.
-      path.setAttribute('stroke-width', (2 * this.scale).toString()); // Scale line thickness.
-      path.setAttribute('fill', 'none'); // No fill, just a line.
-      path.setAttribute('d', `M ${x1 * this.scale} ${y1 * this.scale} C ${cx1 * this.scale} ${cy1 * this.scale}, ${cx2 * this.scale} ${cy2 * this.scale}, ${x2 * this.scale} ${y2 * this.scale}`); // Bezier curve path.
-      svg.appendChild(path); // Add line to SVG.
-      connector.path = path; // Store path in connector.
+      path.setAttribute('stroke', 'white');
+      path.setAttribute('stroke-width', (2 * this.scale).toString());
+      path.setAttribute('fill', 'none');
+      path.setAttribute('d', `M ${x1 * this.scale} ${y1 * this.scale} C ${cx1 * this.scale} ${cy1 * this.scale}, ${cx2 * this.scale} ${cy2 * this.scale}, ${x2 * this.scale} ${y2 * this.scale}`);
+      svg.appendChild(path);
+      connector.path = path;
+  
+      const t = 0.5;
+      const midX = (1 - t) * (1 - t) * (1 - t) * x1 + 3 * (1 - t) * (1 - t) * t * cx1 + 3 * (1 - t) * t * t * cx2 + t * t * t * x2;
+      const midY = (1 - t) * (1 - t) * (1 - t) * y1 + 3 * (1 - t) * (1 - t) * t * cy1 + 3 * (1 - t) * t * t * cy2 + t * t * t * y2;
+  
+      const tangentX = 3 * (1 - t) * (1 - t) * (cx1 - x1) + 6 * (1 - t) * t * (cx2 - cx1) + 3 * t * t * (x2 - cx2);
+      const tangentY = 3 * (1 - t) * (1 - t) * (cy1 - y1) + 6 * (1 - t) * t * (cy2 - cy1) + 3 * t * t * (y2 - cy2);
+  
+      const angle = Math.atan2(tangentY, tangentX) * 180 / Math.PI + 180; 
+  
+      const arrowSize = 10 * this.scale;
+      const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      arrow.setAttribute('points', `${-arrowSize / 2},0 ${arrowSize / 2},-${arrowSize / 2} ${arrowSize / 2},${arrowSize / 2}`);
+      arrow.setAttribute('fill', 'white');
+      arrow.setAttribute('transform', `translate(${midX * this.scale}, ${midY * this.scale}) rotate(${angle})`);
+      svg.appendChild(arrow);
     });
   }
 
